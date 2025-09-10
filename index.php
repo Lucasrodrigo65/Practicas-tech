@@ -160,10 +160,7 @@
       </div>
       <div>
         <div class="hero-visual">
-          <img alt="Estudiante en laptop" src="https://images.unsplash.com/photo-1522071901873-411886a10054?q=80&w=1200&auto=format&fit=crop" />
-          <div class="pin p1"><div><small>Modalidad</small><br><b>Remoto</b></div></div>
-          <div class="pin p2"><div><small>Duración</small><br><b>3-6 meses</b></div></div>
-          <div class="pin p3"><div><small>Stack</small><br><b>HTML · CSS · JS</b></div></div>
+          <img alt="Estudiante en laptop" src="img/istockphoto-2105091005-612x612.jpg" />
         </div>
       </div>
     </div>
