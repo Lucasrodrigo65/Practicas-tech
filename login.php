@@ -456,6 +456,12 @@
                     >
                 </div>
 
+                <!-- Captcha Google reCAPTCHA -->
+                <div class="form-group">
+                    <div class="g-recaptcha" data-sitekey="6LeSd8QrAAAAAAcz_4nF6-ki_RqtyUjrWBuBJqsV"></div>
+                </div>
+                <!-- Fin captcha -->
+
                 <div class="remember-forgot">
                     <div class="checkbox-group">
                         <input type="checkbox" id="remember">
@@ -491,26 +497,34 @@
         ¡Inicio de sesión exitoso! Redirigiendo...
     </div>
 
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script>
         // Handle Login Form
         async function handleLogin(event) {
             event.preventDefault();
-            
+
+            // Validar captcha
+            const captchaResponse = grecaptcha.getResponse();
+            if (!captchaResponse) {
+                alert('Por favor completa el captcha.');
+                return;
+            }
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('loginBtn');
             const loading = document.getElementById('loading');
             const btnText = document.getElementById('btnText');
-            
+
             // Show loading state
             loading.style.display = 'inline-block';
             btnText.textContent = 'Iniciando sesión...';
             loginBtn.disabled = true;
-            
+
             // Simulate login process
             try {
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                
+
                 // Simulate successful login
                 if (username && password) {
                     showSuccess();
