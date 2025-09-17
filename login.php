@@ -1,3 +1,43 @@
+ <?php
+    // Procesar el formulario de inicio de sesión
+    $errorMessage = "";
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Conexión a la base de datos
+        $servername = "localhost";
+        $database = "practicastech";
+        $db_username = "root";
+        $db_password = "";
+
+        $conn = new mysqli($servername, $db_username, $db_password, $database);
+        if ($conn->connect_error) {
+            die("Error de conexión: " . $conn->connect_error);
+        }
+
+        $username = $_POST['username'];
+        $password = $_POST['password'];
+
+        // Buscar por email o nombre de usuario
+        $stmt = $conn->prepare("SELECT * FROM usuarios WHERE email = ? OR nombre = ?");
+        $stmt->bind_param("ss", $username, $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($row = $result->fetch_assoc()) {
+            if (password_verify($password, $row['password'])) {
+                session_start();
+                $_SESSION['username'] = $row['nombre'];
+                header("Location: sesioniniciada.php");
+                exit();
+            } else {
+                $errorMessage = "Contraseña incorrecta";
+            }
+        } else {
+            $errorMessage = "Usuario no encontrado";
+        }
+        $stmt->close();
+        $conn->close();
+    }
+    ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -411,6 +451,16 @@
                 opacity: 1;
             }
         }
+        
+        /* Error Message */
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -433,15 +483,19 @@
                 o <a href="registrarse.php" onclick="showRegister()">haz clic aquí para registrarte</a></p>
             </div>
 
-            <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="loginForm" method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
                 <div class="form-group">
-                    <label for="username">Usuario</label>
+                    <label for="username">Correo electronico</label>
                     <input 
                         type="text" 
                         id="username" 
+                        name="username" 
                         class="form-input" 
-                        placeholder="Ingresa tu usuario"
+                        placeholder="Ingresa tu correo o nombre de usuario"
                         required
+                        value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>"
                     >
                 </div>
 
@@ -450,6 +504,7 @@
                     <input 
                         type="password" 
                         id="password" 
+                        name="password" 
                         class="form-input" 
                         placeholder="Ingresa tu contraseña"
                         required
@@ -464,7 +519,7 @@
 
                 <div class="remember-forgot">
                     <div class="checkbox-group">
-                        <input type="checkbox" id="remember">
+                        <input type="checkbox" id="remember" name="remember">
                         <label for="remember">Recordarme</label>
                     </div>
                     <a href="#" class="forgot-link" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</a>
@@ -529,8 +584,8 @@
                 if (username && password) {
                     showSuccess();
                     setTimeout(() => {
-                        // Redirect to main page
-                        window.location.href = 'index.php';
+                        // Submit the form
+                        document.getElementById('loginForm').submit();
                     }, 2000);
                 } else {
                     throw new Error('Credenciales inválidas');
@@ -563,7 +618,6 @@
                 window.location.href = 'index.php';
             }
         }
-
 
         function showForgotPassword() {
             const email = prompt('Ingresa tu email para recuperar la contraseña:');
@@ -642,5 +696,51 @@
         `;
         document.head.appendChild(style);
     </script>
+    
+    <?php
+    // Procesar el formulario de inicio de sesión
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Conexión a la base de datos
+        $servername = "localhost";
+        $database = "practicastech";
+        $db_username = "root";
+        $db_password = "";
+
+        $conn = new mysqli($servername, $db_username, $db_password, $database);
+        if ($conn->connect_error) {
+            die("Error de conexión: " . $conn->connect_error);
+        }
+
+        $username = $_POST['username'];
+        $password = $_POST['password'];
+
+        // Buscar por email o nombre de usuario
+        $stmt = $conn->prepare("SELECT * FROM usuarios WHERE email = ? OR nombre = ?");
+        $stmt->bind_param("ss", $username, $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($row = $result->fetch_assoc()) {
+            if (password_verify($password, $row['password'])) {
+                session_start();
+                $_SESSION['username'] = $row['nombre'];
+                header("Location: sesioniniciada.php");
+                exit();
+            } else {
+                echo '<script>
+                    document.getElementById("errorMessage").textContent = "Contraseña incorrecta";
+                    document.getElementById("errorMessage").style.display = "block";
+                </script>';
+            }
+        } else {
+            echo '<script>
+                document.getElementById("errorMessage").textContent = "Usuario no encontrado";
+                document.getElementById("errorMessage").style.display = "block";
+            </script>';
+        }
+        $stmt->close();
+        $conn->close();
+    }
+    ?>
 </body>
 </html>
