@@ -1,3 +1,35 @@
+<?php
+session_start();
+
+// Redirigir al login si no hay sesión
+if (!isset($_SESSION['username'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$username = $_SESSION['username'];
+
+// Conexión a la base de datos
+$servername = "localhost";
+$database = "practicastech";
+$db_username = "root";
+$db_password = "";
+
+$conn = new mysqli($servername, $db_username, $db_password, $database);
+if ($conn->connect_error) {
+    die("Error de conexión: " . $conn->connect_error);
+}
+
+// Consulta para obtener las habilidades del usuario
+$habilidades_query = $conn->prepare("SELECT habilidades, nivel_experiencia, anos_experiencia, intereses FROM usuarios WHERE nombre = ?");
+$habilidades_query->bind_param("s", $username);
+$habilidades_query->execute();
+$habilidades_query->bind_result($habilidades, $nivel_experiencia, $anos_experiencia, $intereses);
+$habilidades_query->fetch();
+$habilidades_query->close();
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -429,6 +461,109 @@
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Nuevos estilos para el perfil */
+        .user-welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .user-skills {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .profile-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .detail-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .detail-card h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .skills-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .skill-tag {
+            background: #667eea;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .edit-profile-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 1.5rem;
+        }
+        
+        .edit-profile-btn:hover {
+            background: #555;
+            transform: translateY(-2px);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-right: 1.5rem;
+        }
+        
+        .profile-info h2 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -444,7 +579,19 @@
                 <li><a href="#" onclick="showSection('companies')">Empresas</a></li>
                 <li><a href="#" onclick="showSection('resources')">Recursos Estudiantes</a></li>
                 <li><a href="#" class="about-btn">Sobre Nosotros</a></li>
-                <li><a href="#" class="login-btn-nav" onclick="goToLogin()">Perfil</a></li>
+                
+                <li class="user-welcome">
+                    <div class="user-avatar"><?php echo strtoupper(substr($username, 0, 1)); ?></div>
+                    <span>Bienvenido, <?php echo htmlspecialchars($username); ?></span>
+                    <?php if (!empty($habilidades)): ?>
+                        <div class="user-skills">
+                            <strong>Habilidades:</strong> <?php echo htmlspecialchars($habilidades); ?>
+                        </div>
+                    <?php endif; ?>
+                </li>
+                <!-- Añadido enlace para ver perfil -->
+                <li><a href="#" onclick="showProfile()">Mi Perfil</a></li>
+                <li><a href="logout.php" class="login-btn-nav">Cerrar Sesión</a></li>
             </ul>
         </nav>
     </header>
@@ -501,12 +648,74 @@
         </div>
     </footer>
 
-    <!-- Modal -->
+    <!-- Modal principal -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <div id="modalContent">
                 <!-- Modal content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para el perfil -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="profileContent">
+                <div class="profile-header">
+                    <div class="profile-avatar"><?php echo strtoupper(substr($username, 0, 1)); ?></div>
+                    <div class="profile-info">
+                        <h2><?php echo htmlspecialchars($username); ?></h2>
+                        <p>Miembro desde <?php echo date('Y'); ?></p>
+                    </div>
+                </div>
+                
+                <div class="profile-details">
+                    <?php if (!empty($habilidades)): ?>
+                    <div class="detail-card">
+                        <h3>Habilidades Técnicas</h3>
+                        <div class="skills-list">
+                            <?php 
+                            $habilidades_array = explode(',', $habilidades);
+                            foreach ($habilidades_array as $habilidad): 
+                                $habilidad = trim($habilidad);
+                                if (!empty($habilidad)):
+                            ?>
+                                <span class="skill-tag"><?php echo htmlspecialchars($habilidad); ?></span>
+                            <?php 
+                                endif;
+                            endforeach; 
+                            ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($nivel_experiencia)): ?>
+                    <div class="detail-card">
+                        <h3>Nivel de Experiencia</h3>
+                        <p><?php echo htmlspecialchars($nivel_experiencia); ?></p>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($anos_experiencia)): ?>
+                    <div class="detail-card">
+                        <h3>Años de Experiencia</h3>
+                        <p><?php echo htmlspecialchars($anos_experiencia); ?> año(s)</p>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($intereses)): ?>
+                    <div class="detail-card">
+                        <h3>Áreas de Interés</h3>
+                        <p><?php echo htmlspecialchars($intereses); ?></p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                
+                <button class="edit-profile-btn" onclick="window.location.href='completar_habilidades.php'">
+                    Editar Perfil
+                </button>
             </div>
         </div>
     </div>
@@ -665,6 +874,7 @@
             };
             return locationNames[location] || location;
         }
+        
         // Show internship details
         function showInternshipDetails(internshipId) {
             const internship = internships.find(i => i.id === internshipId);
@@ -704,6 +914,7 @@
         // Close modal
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
+            document.getElementById('profileModal').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
 
@@ -745,6 +956,12 @@
             showModal(content);
         }
 
+        // Show profile
+        function showProfile() {
+            document.getElementById('profileModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
         // Add scroll animations
         function addScrollAnimations() {
             const observer = new IntersectionObserver((entries) => {
@@ -770,7 +987,11 @@
         // Close modal when clicking outside
         window.addEventListener('click', function(e) {
             const modal = document.getElementById('modal');
+            const profileModal = document.getElementById('profileModal');
             if (e.target === modal) {
+                closeModal();
+            }
+            if (e.target === profileModal) {
                 closeModal();
             }
         });
@@ -820,6 +1041,7 @@
             // Restaurar opacidad
             document.body.style.opacity = '1';
         }
+        
         // Add hover effects to cards
         document.addEventListener('mouseover', function(e) {
             if (e.target.closest('.internship-card')) {
