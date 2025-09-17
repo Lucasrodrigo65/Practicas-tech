@@ -1,3 +1,66 @@
+<?php
+// Iniciar sesión al principio del script
+session_start();
+
+// Procesar el formulario de registro
+$error = '';
+$success = '';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Conexión a la base de datos
+    $servername = "localhost";
+    $database = "practicastech";
+    $db_username = "root";
+    $db_password = "";
+
+    $conn = new mysqli($servername, $db_username, $db_password, $database);
+    if ($conn->connect_error) {
+        die("Error de conexión: " . $conn->connect_error);
+    }
+
+    $nombre = trim($_POST['fullname']);
+    $email = trim($_POST['email']);
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+    $confirmPassword = $_POST['confirmPassword'];
+
+    // Validar que las contraseñas coincidan
+    if ($password !== $confirmPassword) {
+        $error = "Las contraseñas no coinciden";
+    } else {
+        // Verificar si el email o el nombre de usuario ya existen
+        $check = $conn->prepare("SELECT id FROM usuarios WHERE email = ? OR nombre = ?");
+        $check->bind_param("ss", $email, $username);
+        $check->execute();
+        $check->store_result();
+
+        if ($check->num_rows > 0) {
+            $error = "El email o nombre de usuario ya están registrados";
+        } else {
+            // Hash de la contraseña
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+            // Insertar el nuevo usuario
+            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)");
+            $stmt->bind_param("sss", $nombre, $email, $hashed_password);
+
+            if ($stmt->execute()) {
+                // Guardar el nombre de usuario en la sesión y redirigir
+                $_SESSION['username'] = $username;
+                header("Location: completar_habilidades.php");
+                exit();
+            } else {
+                $error = "Error al registrar el usuario: " . $conn->error;
+            }
+
+            $stmt->close();
+        }
+        $check->close();
+    }
+    $conn->close();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -41,6 +104,22 @@
     .visual-content{z-index:5;text-align:center;color:#fff}
     .visual-content h2{font-size:2.3rem;font-weight:700;margin-bottom:1rem;background:linear-gradient(45deg,#667eea,#764ba2,#ff4081);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
     @media(max-width:768px){.login-container{flex-direction:column;max-width:400px}.visual-panel{display:none}}
+
+    /* Estilos para mensajes de error y éxito */
+    .message {
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
   </style>
 </head>
 <body>
@@ -58,38 +137,34 @@
         ¿Ya tienes cuenta? <a href="login.php">Inicia sesión aquí</a></p>
       </div>
 
-      <form id="registerForm" onsubmit="handleRegister(event)">
+      <?php if ($error): ?>
+        <div class="message error"><?php echo $error; ?></div>
+      <?php endif; ?>
+
+      <?php if ($success): ?>
+        <div class="message success"><?php echo $success; ?></div>
+      <?php endif; ?>
+
+      <form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
         <div class="form-group">
           <label for="fullname">Nombre completo</label>
-          <input type="text" id="fullname" class="form-input" placeholder="Ej: Ana Pérez" required>
+          <input type="text" id="fullname" name="fullname" class="form-input" placeholder="Ej: Ana Pérez" required value="<?php echo isset($_POST['fullname']) ? htmlspecialchars($_POST['fullname']) : ''; ?>">
         </div>
         <div class="form-group">
           <label for="email">Correo electrónico</label>
-          <input type="email" id="email" class="form-input" placeholder="ejemplo@correo.com" required>
+          <input type="email" id="email" name="email" class="form-input" placeholder="ejemplo@correo.com" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
         </div>
         <div class="form-group">
           <label for="username">Usuario</label>
-          <input type="text" id="username" class="form-input" placeholder="Elige un nombre de usuario" required>
-        </div>
-        <div class="form-group">
-          <label for="role">Me registro como</label>
-          <select id="role" class="form-select" required>
-            <option value="">Selecciona una opción</option>
-            <option value="candidato">Programador / Estudiante</option>
-            <option value="empresa">Empresa / Reclutador</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="skills">Habilidades principales</label>
-          <input type="text" id="skills" class="form-input" placeholder="Ej: JavaScript, Python, React">
+          <input type="text" id="username" name="username" class="form-input" placeholder="Elige un nombre de usuario" required value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
         </div>
         <div class="form-group">
           <label for="password">Contraseña</label>
-          <input type="password" id="password" class="form-input" placeholder="Crea una contraseña" required>
+          <input type="password" id="password" name="password" class="form-input" placeholder="Crea una contraseña" required>
         </div>
         <div class="form-group">
           <label for="confirmPassword">Confirmar contraseña</label>
-          <input type="password" id="confirmPassword" class="form-input" placeholder="Repite tu contraseña" required>
+          <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" placeholder="Repite tu contraseña" required>
         </div>
         <button type="submit" class="login-btn">Registrarme</button>
       </form>
@@ -107,15 +182,6 @@
 
   <script>
     function goBack(){ window.location.href="index.php"; }
-
-    function handleRegister(e){
-      e.preventDefault();
-      const pass=document.getElementById("password").value;
-      const confirm=document.getElementById("confirmPassword").value;
-      if(pass!==confirm){alert("Las contraseñas no coinciden");return;}
-      alert("¡Registro exitoso! Ahora puedes iniciar sesión.");
-      window.location.href="login.php";
-    }
   </script>
 </body>
 </html>
